@@ -111,7 +111,7 @@ fn integration_test_report_vault_under_liquidation_threshold() {
         ));
         VaultRegistryModule::insert_vault(&account_of(LIQUIDATION_VAULT), Vault::default());
 
-        force_issue_tokens(user, vault, collateral_vault, amount);
+        increase_issued(user, vault, collateral_vault, amount);
 
         // register as staked relayer
         assert_ok!(

@@ -166,14 +166,14 @@ impl CoreVaultData {
 
         let current = CoreVaultData::vault(vault);
         if current.to_be_issued < state.to_be_issued {
-            assert_ok!(VaultRegistryModule::increase_to_be_issued_tokens(
+            assert_ok!(VaultRegistryModule::try_increase_to_be_issued_tokens(
                 &account_of(vault),
                 state.to_be_issued - current.to_be_issued
             ));
         }
 
         if current.issued < state.issued {
-            assert_ok!(VaultRegistryModule::increase_to_be_issued_tokens(
+            assert_ok!(VaultRegistryModule::try_increase_to_be_issued_tokens(
                 &account_of(vault),
                 state.issued - current.issued
             ));
@@ -184,7 +184,7 @@ impl CoreVaultData {
             ));
         }
         if current.to_be_redeemed < state.to_be_redeemed {
-            assert_ok!(VaultRegistryModule::increase_to_be_redeemed_tokens(
+            assert_ok!(VaultRegistryModule::try_increase_to_be_redeemed_tokens(
                 &account_of(vault),
                 state.to_be_redeemed - current.to_be_redeemed
             ));
@@ -270,7 +270,7 @@ pub fn dummy_public_key() -> BtcPublicKey {
 }
 
 #[allow(dead_code)]
-pub fn force_issue_tokens(user: [u8; 32], vault: [u8; 32], collateral: u128, tokens: u128) {
+pub fn increase_issued(user: [u8; 32], vault: [u8; 32], collateral: u128, tokens: u128) {
     // register the vault
     assert_ok!(Call::VaultRegistry(VaultRegistryCall::register_vault(
         collateral,
@@ -279,7 +279,7 @@ pub fn force_issue_tokens(user: [u8; 32], vault: [u8; 32], collateral: u128, tok
     .dispatch(origin_of(account_of(vault))));
 
     // increase to be issued tokens
-    assert_ok!(VaultRegistryModule::increase_to_be_issued_tokens(
+    assert_ok!(VaultRegistryModule::try_increase_to_be_issued_tokens(
         &account_of(vault),
         tokens
     ));

@@ -73,7 +73,7 @@ fn integration_test_replace_request_replace() {
         let griefing_collateral = 200;
 
         // bob creates a vault
-        force_issue_tokens(ALICE, BOB, collateral, amount);
+        increase_issued(ALICE, BOB, collateral, amount);
         // bob requests a replace
         assert_ok!(
             Call::Replace(ReplaceCall::request_replace(amount, griefing_collateral))
@@ -100,7 +100,7 @@ fn integration_test_replace_withdraw_replace() {
         let bob = origin_of(account_of(BOB));
 
         // bob creates a vault
-        force_issue_tokens(ALICE, BOB, collateral, amount);
+        increase_issued(ALICE, BOB, collateral, amount);
         // bob requests a replace
         assert_ok!(
             Call::Replace(ReplaceCall::request_replace(5000, griefing_collateral))
@@ -132,7 +132,7 @@ fn integration_test_replace_accept_replace() {
         ))
         .dispatch(origin_of(account_of(ALICE))));
         // bob creates a vault
-        force_issue_tokens(ALICE, BOB, collateral, amount);
+        increase_issued(ALICE, BOB, collateral, amount);
         // bob requests a replace
         assert_ok!(
             Call::Replace(ReplaceCall::request_replace(amount, griefing_collateral))
@@ -169,7 +169,7 @@ fn integration_test_replace_auction_replace() {
         let new_vault_btc_address = BtcAddress::P2PKH(H160([2; 20]));
 
         // old vault has issued some tokens with the user
-        force_issue_tokens(user, old_vault, collateral, polkabtc);
+        increase_issued(user, old_vault, collateral, polkabtc);
 
         // new vault joins
         assert_ok!(Call::VaultRegistry(VaultRegistryCall::register_vault(
@@ -227,7 +227,7 @@ fn integration_test_replace_execute_replace() {
         let new_vault_btc_address = BtcAddress::P2PKH(H160([2; 20]));
 
         // old vault has issued some tokens with the user
-        force_issue_tokens(user, old_vault, collateral, polkabtc);
+        increase_issued(user, old_vault, collateral, polkabtc);
 
         // new vault joins
         assert_ok!(Call::VaultRegistry(VaultRegistryCall::register_vault(
@@ -288,7 +288,7 @@ fn integration_test_replace_cancel_replace() {
         ))
         .dispatch(origin_of(account_of(ALICE))));
         // bob creates a vault
-        force_issue_tokens(ALICE, BOB, collateral, amount);
+        increase_issued(ALICE, BOB, collateral, amount);
         // bob requests a replace
         assert_ok!(
             Call::Replace(ReplaceCall::request_replace(amount, griefing_collateral))
@@ -330,7 +330,7 @@ fn integration_test_replace_cancel_auction_replace() {
         // let old_vault_btc_address = BtcAddress::P2PKH(H160([1; 20]));
 
         // old vault has issued some tokens with the user
-        force_issue_tokens(user, old_vault, collateral, polkabtc);
+        increase_issued(user, old_vault, collateral, polkabtc);
 
         // new vault joins
         assert_ok!(Call::VaultRegistry(VaultRegistryCall::register_vault(
@@ -415,7 +415,7 @@ fn integration_test_replace_cancel_repeatedly_fails() {
         let new_vault_btc_address3 = BtcAddress::P2PKH(H160([4; 20]));
 
         // old vault has issued some tokens with the user
-        force_issue_tokens(user, old_vault, collateral, polkabtc);
+        increase_issued(user, old_vault, collateral, polkabtc);
 
         // new vault joins
         assert_ok!(Call::VaultRegistry(VaultRegistryCall::register_vault(
@@ -494,7 +494,7 @@ fn setup_replace(polkabtc: u128) -> H256 {
     let new_vault_btc_address = BtcAddress::P2PKH(H160([2; 20]));
 
     // old vault has issued some tokens with the user
-    force_issue_tokens(USER, OLD_VAULT, DEFAULT_COLLATERAL, polkabtc);
+    increase_issued(USER, OLD_VAULT, DEFAULT_COLLATERAL, polkabtc);
 
     // new vault joins
     assert_ok!(Call::VaultRegistry(VaultRegistryCall::register_vault(
@@ -1077,7 +1077,7 @@ fn integration_test_issue_using_griefing_collateral_fails() {
         let issue_amount = amount * 10;
         let griefing_collateral = 1_000_000;
         // bob creates a vault
-        force_issue_tokens(ALICE, BOB, collateral, amount);
+        increase_issued(ALICE, BOB, collateral, amount);
 
         assert_noop!(
             Call::Issue(IssueCall::request_issue(

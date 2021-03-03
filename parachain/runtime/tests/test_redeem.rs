@@ -8,8 +8,6 @@ type RedeemCall = redeem::Call<Runtime>;
 type RedeemModule = redeem::Module<Runtime>;
 type RedeemEvent = redeem::Event<Runtime>;
 type RedeemError = redeem::Error<Runtime>;
-use vault_registry::types::RichVault;
-use vault_registry::types::UpdatableVault;
 
 const USER: [u8; 32] = ALICE;
 const VAULT: [u8; 32] = BOB;
@@ -67,7 +65,7 @@ fn integration_test_redeem_polka_btc_execute() {
         set_default_thresholds();
 
         // create tokens for the vault and user
-        force_issue_tokens(user, vault, collateral_vault, polka_btc);
+        increase_issued(user, vault, collateral_vault, polka_btc);
 
         let initial_dot_balance = CollateralModule::get_balance_from_account(&account_of(user));
         let initial_btc_balance = TreasuryModule::get_balance_from_account(account_of(user));
@@ -135,7 +133,7 @@ fn integration_test_premium_redeem_polka_btc_execute() {
         let collateral_vault = required_collateral_for_issue(polka_btc);
 
         // create tokens for the vault and user
-        force_issue_tokens(user, vault, collateral_vault, polka_btc);
+        increase_issued(user, vault, collateral_vault, polka_btc);
 
         // suddenly require twice as much DOT; we are definitely below premium redeem threshold now
         // (also below liquidation threshold, but as long as we don't call liquidate that's ok)
@@ -312,7 +310,7 @@ fn setup_redeem(polka_btc: u128, user: [u8; 32], vault: [u8; 32], collateral: u1
     .unwrap();
 
     // create tokens for the vault and user
-    force_issue_tokens(user, vault, collateral, polka_btc - fee);
+    increase_issued(user, vault, collateral, polka_btc - fee);
 
     // mint tokens to the user such that he can afford the fee
     TreasuryModule::mint(user.into(), fee);
