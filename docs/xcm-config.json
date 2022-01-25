@@ -36,7 +36,7 @@
 		{
 			"bin": "/usr/local/bin/interbtc-parachain",
 			"id": "2000",
-			"balance": "1000000000000000000000",
+			"balance": "100000000000",
 			"nodes": [
 				{
 					"wsPort": 9988,
@@ -54,7 +54,7 @@
 		{
 			"bin": "/usr/local/bin/interbtc-parachain",
 			"id": "3000",
-			"balance": "1000000000000000000000",
+			"balance": "0",
 			"nodes": [
 				{
 					"wsPort": 9999,
@@ -72,12 +72,6 @@
 	],
 	"simpleParachains": [],
 	"hrmpChannels": [
-		{
-			"sender": 2000,
-			"recipient": 3000,
-			"maxCapacity": 8,
-			"maxMessageSize": 512
-		}
 	],
 	"types": {},
 	"finalization": false
