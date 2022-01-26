@@ -12,6 +12,7 @@ serde = { version = "1.0.130", default-features = false, features = ["derive"], 
 codec = { package = "parity-scale-codec", version = "2.2.0", default-features = false, features = ["derive", "max-encoded-len"] }
 hex-literal = { version = "0.3.1" }
 scale-info = { version = "1.0.0", default-features = false, features = ["derive"] }
+libsecp256k1 = { version = "0.6" }
 
 # Substrate dependencies
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
@@ -62,9 +63,14 @@ cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", br
 cumulus-pallet-dmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.15", default-features = false }
 cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.15", default-features = false }
 cumulus-pallet-xcm = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.15", default-features = false }
+cumulus-test-relay-sproof-builder = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.15", default-features = false  }
+cumulus-primitives-parachain-inherent = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.15", default-features = false  }
 
 # Polkadot dependencies
 polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.15", default-features = false }
+polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.15", default-features = false }
+polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.15", default-features = false }
+kusama-runtime = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.15", default-features = false  }
 xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.15", default-features = false }
 xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.15", default-features = false }
 xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.15", default-features = false }
@@ -115,15 +121,18 @@ orml-xcm = { git = "https://github.com/open-web3-stack/open-runtime-module-libra
 orml-xcm-support = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "637b98e7c6f34c089076c41255d226c73d882c69", default-features = false }
 orml-unknown-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "637b98e7c6f34c089076c41255d226c73d882c69", default-features = false }
 
+xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", rev = "4d3bb9dd4fa2cd554a9970ffff816d9346269eaa" }
+
+
 [dev-dependencies]
 hex = '0.4.2'
 mocktopus = '0.7.0'
 serde_json = "1.0"
 
 bitcoin = { path = "../../../crates/bitcoin", default-features = false }
-
-[build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15" }
+# 
+# [build-dependencies]
+# substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15" }
 
 # TODO: enable weak dependency activation when available
 # https://github.com/rust-lang/cargo/issues/8832
@@ -177,11 +186,16 @@ std = [
   "cumulus-pallet-parachain-system/std",
   "cumulus-pallet-xcmp-queue/std",
   "cumulus-pallet-xcm/std",
+  "cumulus-test-relay-sproof-builder/std",
+  "cumulus-primitives-parachain-inherent/std",
   "cumulus-primitives-core/std",
   "cumulus-primitives-timestamp/std",
   "cumulus-primitives-utility/std",
 
   "polkadot-parachain/std",
+  "polkadot-primitives/std",
+  "polkadot-runtime-parachains/std",
+  "kusama-runtime/std",
   "xcm/std",
   "xcm-builder/std",
   "xcm-executor/std",
