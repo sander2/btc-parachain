@@ -31,7 +31,7 @@ pub use sp_runtime::{
 	traits::{AccountIdConversion, BadOrigin, BlakeTwo256, Convert, Hash, Zero},
 	DispatchError, DispatchResult, FixedPointNumber, MultiAddress, Perbill, Permill,
 };
-
+pub use xcm_emulator::XcmExecutor;
 pub use xcm::latest::prelude::*;
 
 pub use kintsugi_imports::*;
@@ -186,13 +186,13 @@ impl ExtBuilder {
 		// .assimilate_storage(&mut t)
 		// .unwrap();
 
-		// <parachain_info::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
-		// 	&parachain_info::GenesisConfig {
-		// 		parachain_id: self.parachain_id.into(),
-		// 	},
-		// 	&mut t,
-		// )
-		// .unwrap();
+		<parachain_info::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
+			&parachain_info::GenesisConfig {
+				parachain_id: self.parachain_id.into(),
+			},
+			&mut t,
+		)
+		.unwrap();
 
 		<pallet_xcm::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 			&pallet_xcm::GenesisConfig {

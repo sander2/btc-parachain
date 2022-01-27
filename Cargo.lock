@@ -6809,7 +6809,7 @@ dependencies = [
  "pallet-treasury",
  "pallet-utility",
  "pallet-xcm",
- "parachain-info 1.2.0",
+ "parachain-info 0.1.0",
  "parity-scale-codec",
  "polkadot-parachain",
  "polkadot-primitives",
@@ -13016,8 +13016,3 @@ dependencies = [
 name = "sc-consensus-manual-seal"
 version = "0.10.0-dev"
 source = "git+https://github.com/paritytech//substrate?branch=polkadot-v0.9.15#d36550a8da62fc968fac415c3379ad95d85105d1"
-
-[[patch.unused]]
-name = "xcm-simulator"
-version = "0.9.15"
-source = "git+https://github.com/paritytech//polkadot?branch=release-v0.9.15#4d94aea03300b85ddbfaa5b28e1078545e0545a2"

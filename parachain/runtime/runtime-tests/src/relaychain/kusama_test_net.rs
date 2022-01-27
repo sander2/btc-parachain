@@ -1,23 +1,3 @@
-
-// This file is part of Acala.
-// Copyright (C) 2020-2022 Acala Foundation.
-// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
-
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-//! Relay chain and parachains emulation.
-
 use crate::setup::*;
 
 use cumulus_primitives_core::ParaId;
@@ -44,7 +24,7 @@ decl_test_parachain! {
 	pub struct Kintsugi {
 		Runtime = Runtime,
 		Origin = Origin,
-		new_ext = para_ext(2000),
+		new_ext = para_ext(2092),
 	}
 }
 
@@ -60,7 +40,7 @@ decl_test_network! {
 	pub struct TestNet {
 		relay_chain = KusamaNet,
 		parachains = vec![
-			(2000, Kintsugi),
+			(2092, Kintsugi),
 			(2001, Sibling),
 		],
 	}
@@ -113,7 +93,7 @@ pub fn kusama_ext() -> sp_io::TestExternalities {
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
 			(AccountId::from(ALICE), 2002 * KSM.one()),
-			(ParaId::from(2000).into_account(), 2 * KSM.one()),
+			(ParaId::from(2092).into_account(), 2 * KSM.one()),
 		],
 	}
 	.assimilate_storage(&mut t)
