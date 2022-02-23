@@ -94,7 +94,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("testnet-parachain"),
     impl_name: create_runtime_str!("testnet-parachain"),
     authoring_version: 1,
-    spec_version: 1,
+    spec_version: 2,
     impl_version: 1,
     transaction_version: 1, // added preimage
     apis: RUNTIME_API_VERSIONS,
@@ -153,6 +153,7 @@ use frame_support::storage::{migration, unhashed};
 pub struct AuraMigration;
 impl frame_support::traits::OnRuntimeUpgrade for AuraMigration {
     fn on_runtime_upgrade() -> frame_support::weights::Weight {
+        // the actual value doesn't really matter, we just need to set it to a low value
 		migration::put_storage_value(b"Aura", b"CurrentSlot", &[], 100u64);
         0
     }
@@ -1408,7 +1409,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    (),//AuraMigration,
+    AuraMigration,
 >;
 
 #[cfg(not(feature = "disable-runtime-api"))]
