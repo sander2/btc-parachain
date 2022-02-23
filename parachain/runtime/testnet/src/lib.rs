@@ -147,6 +147,26 @@ const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 /// We allow for 2 seconds of compute with a 12 second average block time.
 const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
+use frame_support::storage::{migration, unhashed};
+
+
+pub struct AuraMigration;
+impl frame_support::traits::OnRuntimeUpgrade for AuraMigration {
+    fn on_runtime_upgrade() -> frame_support::weights::Weight {
+		migration::put_storage_value(b"Aura", b"CurrentSlot", &[], 100u64);
+        0
+    }
+
+    #[cfg(feature = "try-runtime")]
+    fn pre_upgrade() -> Result<(), &'static str> {
+        Ok(())
+    }
+
+    #[cfg(feature = "try-runtime")]
+    fn post_upgrade() -> Result<(), &'static str> {
+        Ok(())
+    }
+}
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
@@ -1388,7 +1408,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    SchedulerMigrationV3,
+    (),//AuraMigration,
 >;
 
 #[cfg(not(feature = "disable-runtime-api"))]
