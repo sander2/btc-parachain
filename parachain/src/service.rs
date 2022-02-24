@@ -223,7 +223,8 @@ where
                     async move {
                         let slot_ms = match client_clone.clone().runtime_version_at(&BlockId::Hash(parent.clone())) {
                             Ok(x) if x.spec_name.starts_with("kintsugi") => 6000,
-                            _ => 12000,
+                            Ok(x) if x.spec_version >= 2 => 12000,
+                            _ => 6000,
                         };
                         let slot_duration = cumulus_client_consensus_aura::SlotDuration::new(
                             sp_consensus_aura::SlotDuration::from_millis(slot_ms),
@@ -441,7 +442,7 @@ where
     let slot_ms = if parachain_config.chain_spec.is_kintsugi() {
         6000
     } else {
-        12000
+        6000
     };
     start_node_impl(
         parachain_config,
@@ -467,6 +468,7 @@ where
                 prometheus_registry,
                 telemetry.clone(),
             );
+            let client_clone = client.clone();
 
             Ok(AuraConsensus::build::<
                 sp_consensus_aura::sr25519::AuthorityPair,
@@ -478,7 +480,9 @@ where
                 _,
             >(BuildAuraConsensusParams {
                 proposer_factory,
-                create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
+                create_inherent_data_providers: move |parent: sp_core::H256, (relay_parent, validation_data)| {
+                    let client_clone = client_clone.clone();
+
                     let relay_chain_interface = relay_chain_interface.clone();
                     async move {
                         let parachain_inherent =
@@ -489,6 +493,15 @@ where
                                 id,
                             )
                             .await;
+
+                        let slot_ms = match client_clone.clone().runtime_version_at(&BlockId::Hash(parent.clone())) {
+                            Ok(x) if x.spec_name.starts_with("kintsugi") => 6000,
+                            Ok(x) if x.spec_version >= 2 => 12000,
+                            _ => 6000,
+                        };
+                        let slot_duration = cumulus_client_consensus_aura::SlotDuration::new(
+                            sp_consensus_aura::SlotDuration::from_millis(slot_ms),
+                        );
 
                         let time = sp_timestamp::InherentDataProvider::from_system_time();
 

@@ -34,7 +34,7 @@
 	},
 	"parachains": [
 		{
-			"bin": "/usr/local/bin/interbtc-parachain",
+			"bin": "/home/sander/workspace/interlay/btc-parachain/interbtc-1.7.4.6-sec-testnet",
 			"balance": "1000000000000000000000",
 			"nodes": [
 				{
@@ -49,39 +49,10 @@
 				}
 			],
 			"chain": "rococo-local-2000"
-		},
-		{
-			"bin": "/usr/local/bin/interbtc-parachain",
-			"balance": "1000000000000000000000",
-			"nodes": [
-				{
-					"wsPort": 9999,
-					"port": 31300,
-					"name": "alice",
-					"flags": [
-						"--rpc-port=9990",
-						"--",
-						"--execution=wasm"
-					]
-				}
-			],
-			"chain": "rococo-local-3000"
 		}
 	],
 	"simpleParachains": [],
 	"hrmpChannels": [
-		{
-			"sender": 2000,
-			"recipient": 3000,
-			"maxCapacity": 8,
-			"maxMessageSize": 512
-		},
-		{
-			"sender": 3000,
-			"recipient": 2000,
-			"maxCapacity": 8,
-			"maxMessageSize": 512
-		}
 	],
 	"types": {},
 	"finalization": false
