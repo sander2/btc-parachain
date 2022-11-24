@@ -750,7 +750,7 @@ impl annuity::BlockRewardProvider<AccountId> for VaultBlockRewardProvider {
     fn distribute_block_reward(from: &AccountId, amount: Balance) -> DispatchResult {
         // TODO: remove fee pallet?
         Self::Currency::transfer(from, &FeeAccount::get(), amount, ExistenceRequirement::KeepAlive)?;
-        <VaultRewards as reward::RewardsApi<(), VaultId, Balance>>::distribute_reward(
+        <VaultCapacity as reward::RewardsApi<(), CurrencyId, Balance>>::distribute_reward(
             &(),
             GetNativeCurrencyId::get(),
             amount,
@@ -792,8 +792,20 @@ pub type VaultRewardsInstance = reward::Instance2;
 impl reward::Config<VaultRewardsInstance> for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type SignedFixedPoint = SignedFixedPoint;
-    type PoolId = ();
+    type PoolId = CurrencyId;
     type StakeId = VaultId;
+    type CurrencyId = CurrencyId;
+    type GetNativeCurrencyId = GetNativeCurrencyId;
+    type GetWrappedCurrencyId = GetWrappedCurrencyId;
+}
+
+type VaultCapacityInstance = reward::Instance3;
+
+impl reward::Config<VaultCapacityInstance> for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type SignedFixedPoint = SignedFixedPoint;
+    type PoolId = ();
+    type StakeId = CurrencyId;
     type CurrencyId = CurrencyId;
     type GetNativeCurrencyId = GetNativeCurrencyId;
     type GetWrappedCurrencyId = GetWrappedCurrencyId;
@@ -929,6 +941,7 @@ impl fee::Config for Runtime {
     type SignedInner = SignedInner;
     type UnsignedFixedPoint = UnsignedFixedPoint;
     type UnsignedInner = UnsignedInner;
+    type CapacityRewards = VaultCapacity;
     type VaultRewards = VaultRewards;
     type VaultStaking = VaultStaking;
     type OnSweep = currency::SweepFunds<Runtime, FeeAccount>;
@@ -1033,6 +1046,7 @@ construct_runtime! {
         VaultAnnuity: annuity::<Instance2>::{Pallet, Call, Storage, Event<T>} = 14,
         VaultRewards: reward::<Instance2>::{Pallet, Storage, Event<T>} = 15,
         VaultStaking: staking::{Pallet, Storage, Event<T>} = 16,
+        VaultCapacity: reward::<Instance3>::{Pallet, Storage, Event<T>} = 43,
 
         Supply: supply::{Pallet, Storage, Call, Event<T>, Config<T>} = 17,
 
@@ -1410,7 +1424,7 @@ impl_runtime_apis! {
         }
 
         fn compute_vault_reward(vault_id: VaultId, currency_id: CurrencyId) -> Result<BalanceWrapper<Balance>, DispatchError> {
-            let amount = <VaultRewards as reward::RewardsApi<(), VaultId, Balance>>::compute_reward(&(), &vault_id, currency_id)?;
+            let amount = <VaultRewards as reward::RewardsApi<CurrencyId, VaultId, Balance>>::compute_reward(&vault_id.collateral_currency(), &vault_id, currency_id)?;
             let balance = BalanceWrapper::<Balance> { amount };
             Ok(balance)
         }
