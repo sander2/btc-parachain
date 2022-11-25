@@ -799,7 +799,7 @@ impl reward::Config<VaultRewardsInstance> for Runtime {
     type GetWrappedCurrencyId = GetWrappedCurrencyId;
 }
 
-type VaultCapacityInstance = reward::Instance3;
+pub type VaultCapacityInstance = reward::Instance3;
 
 impl reward::Config<VaultCapacityInstance> for Runtime {
     type RuntimeEvent = RuntimeEvent;
@@ -926,7 +926,7 @@ where
 
 impl oracle::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type OnAggregateChange = ();
+    type OnExchangerateChange = (vault_registry::PoolManager<Runtime>, Loans);
     type WeightInfo = ();
 }
 
@@ -1016,6 +1016,7 @@ impl loans::Config for Runtime {
     type UnixTime = Timestamp;
     type Assets = Tokens;
     type RewardAssetId = GetNativeCurrencyId;
+    type OnExchangerateChange = vault_registry::PoolManager<Runtime>;
 }
 
 construct_runtime! {

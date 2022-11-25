@@ -82,14 +82,12 @@ fn withdraw_rewards(vault_id: &VaultId, nominator_id: &AccountId) {
     withdraw_local_pool_rewards(vault_id, nominator_id);
 }
 
-fn withdraw_vault_global_pool_rewards(vault_id: &VaultId) -> i128 {
-    let amount = VaultRewardsPallet::compute_reward(vault_id, vault_id.wrapped_currency()).unwrap();
+fn withdraw_vault_global_pool_rewards(vault_id: &VaultId) {
     assert_ok!(RuntimeCall::Fee(FeeCall::withdraw_rewards {
         vault_id: vault_id.clone(),
         index: None
     })
     .dispatch(origin_of(vault_id.account_id.clone())));
-    amount
 }
 
 fn withdraw_local_pool_rewards(vault_id: &VaultId, nominator_id: &AccountId) -> i128 {
@@ -103,15 +101,22 @@ fn withdraw_local_pool_rewards(vault_id: &VaultId, nominator_id: &AccountId) -> 
 }
 
 fn get_vault_global_pool_rewards(vault_id: &VaultId) -> i128 {
-    VaultRewardsPallet::compute_reward(vault_id, REWARD_CURRENCY).unwrap()
+    // todo: withdraw from capacity?
+    // VaultRewardsPallet::compute_reward(&vault_id.collateral_currency(), vault_id, REWARD_CURRENCY).unwrap()
+    let reward =
+        CapacityRewardsPallet::withdraw_reward(&(), &vault_id.collateral_currency(), vault_id.collateral_currency())
+            .unwrap();
+    VaultRewardsPallet::distribute_reward(
+        &vault_id.collateral_currency(),
+        vault_id.collateral_currency(),
+        reward.into(),
+    )
+    .unwrap();
+    VaultRewardsPallet::compute_reward(&vault_id.collateral_currency(), vault_id, REWARD_CURRENCY).unwrap()
 }
 
 fn get_local_pool_rewards(vault_id: &VaultId, nominator_id: &AccountId) -> i128 {
     staking::Pallet::<Runtime>::compute_reward(REWARD_CURRENCY, vault_id, nominator_id).unwrap()
-}
-
-fn distribute_global_pool(vault_id: &VaultId) {
-    FeePallet::distribute_from_reward_pool(vault_id).unwrap();
 }
 
 fn get_vault_issued_tokens(vault_id: &VaultId) -> Amount<Runtime> {
@@ -281,7 +286,7 @@ fn test_fee_nomination() {
             global_reward_pool.compute_reward(&vault_1_stake_id) as i128,
         );
 
-        distribute_global_pool(&vault_id);
+        FeePallet::distribute_vault_rewards(&vault_id, REWARD_CURRENCY).unwrap();
 
         assert_eq_modulo_rounding!(get_vault_global_pool_rewards(&vault_id), 0 as i128);
 
@@ -468,9 +473,9 @@ enum Action {
     WithdrawNominationCollateral,
     DepositVaultCollateral,
     WithdrawVaultCollateral,
-    DepositVaultStake,
-    WithdrawVaultStake,
+    SetSecureThreshold,
     DistributeRewards,
+    SetExchangeRate,
 }
 
 impl Action {
@@ -480,9 +485,9 @@ impl Action {
             1 => Self::WithdrawNominationCollateral,
             2 => Self::DepositVaultCollateral,
             3 => Self::WithdrawVaultCollateral,
-            4 => Self::DepositVaultStake,
-            5 => Self::WithdrawVaultStake,
-            6 => Self::DistributeRewards,
+            4 => Self::SetSecureThreshold,
+            5 => Self::DistributeRewards,
+            6 => Self::SetExchangeRate,
             _ => unreachable!(),
         }
     }
@@ -502,25 +507,37 @@ fn do_random_nomination_sequence() {
 
         let max_collateral = 1000;
 
+        let token1 = Token(DOT);
+        let token2 = Token(KSM);
+
         // set up some potential nominators
         let nominators: Vec<_> = (100..107).map(|id| account_of([id; 32])).collect();
         for nominator in nominators.iter() {
-            assert_ok!(RuntimeCall::Tokens(TokensCall::set_balance {
-                who: nominator.clone(),
-                currency_id: vault_id.collateral_currency(),
-                new_free: max_collateral,
-                new_reserved: 0,
-            })
-            .dispatch(root()));
+            for currency_id in [vault_id.collateral_currency(), token1, token2] {
+                assert_ok!(RuntimeCall::Tokens(TokensCall::set_balance {
+                    who: nominator.clone(),
+                    currency_id,
+                    new_free: max_collateral,
+                    new_reserved: 0,
+                })
+                .dispatch(root()));
+            }
         }
 
         // setup some vaults
         let vault_id = &vault_id;
         let vaults: Vec<_> = (107..110)
             .map(|id| {
+                let collateral_currency = match rng.gen_bool(0.5) {
+                    false => token1,
+                    true => token2,
+                };
                 let vault_id = PrimitiveVaultId {
                     account_id: account_of([id; 32]),
-                    ..vault_id.clone()
+                    currencies: VaultCurrencyPair {
+                        collateral: collateral_currency,
+                        wrapped: vault_id.wrapped_currency(),
+                    },
                 };
                 CoreVaultData::force_to(&vault_id, default_vault_state(&vault_id));
                 assert_nomination_opt_in(&vault_id);
@@ -534,11 +551,20 @@ fn do_random_nomination_sequence() {
         let mut reference_pool = IdealRewardPool::default();
         for vault_id in vaults.iter() {
             let collateral = default_vault_state(&vault_id).backing_collateral.amount();
-            reference_pool.deposit_nominator_stake(&(vault_id.clone(), vault_id.account_id.clone()), collateral);
+            reference_pool.deposit_nominator_collateral(&(vault_id.clone(), vault_id.account_id.clone()), collateral);
 
-            // vault stake equal to minted tokens
-            let tokens = DEFAULT_VAULT_ISSUED - DEFAULT_VAULT_TO_BE_REDEEMED;
-            reference_pool.deposit_vault_stake(vault_id, tokens.amount());
+            assert_ok!(
+                RuntimeCall::VaultRegistry(VaultRegistryCall::set_custom_secure_threshold {
+                    currency_pair: vault_id.currencies.clone(),
+                    custom_threshold: Some(FixedU128::from_float(3.0)),
+                })
+                .dispatch(origin_of(vault_id.account_id.clone()))
+            );
+            let threshold = VaultRegistryPallet::get_vault_secure_threshold(&vault_id).unwrap();
+            reference_pool.set_secure_threshold(&vault_id, threshold);
+
+            OraclePallet::_set_exchange_rate(vault_id.collateral_currency(), FixedU128::one()).unwrap();
+            reference_pool.set_exchange_rate(vault_id.collateral_currency(), FixedU128::one());
         }
 
         let mut actual_rewards = BTreeMap::new();
@@ -547,10 +573,10 @@ fn do_random_nomination_sequence() {
             match Action::random(&mut rng) {
                 Action::DepositNominationCollateral => {
                     let nominator = &nominators[rng.gen_range(0..nominators.len())];
-                    let current_stake = reference_pool.get_nominator_stake(nominator);
-                    let amount = rng.gen_range(0..max_collateral - current_stake);
                     let vault = &vaults[rng.gen_range(0..vaults.len())];
-                    reference_pool.deposit_nominator_stake(&(vault.clone(), nominator.clone()), amount);
+                    let current_stake = reference_pool.get_nominator_collateral(nominator, vault.collateral_currency());
+                    let amount = rng.gen_range(0..max_collateral - current_stake);
+                    reference_pool.deposit_nominator_collateral(&(vault.clone(), nominator.clone()), amount);
                     assert_nominate_collateral(
                         vault,
                         nominator.clone(),
@@ -578,7 +604,7 @@ fn do_random_nomination_sequence() {
 
                     let amount = rng.gen_range(0..max_amount);
 
-                    reference_pool.withdraw_nominator_stake(&(vault_id.clone(), nominator_id.clone()), amount);
+                    reference_pool.withdraw_nominator_collateral(&(vault_id.clone(), nominator_id.clone()), amount);
                     assert_withdraw_nominator_collateral(
                         nominator_id,
                         &vault_id,
@@ -595,7 +621,8 @@ fn do_random_nomination_sequence() {
                         amount,
                     })
                     .dispatch(origin_of(vault_id.account_id.clone())));
-                    reference_pool.deposit_nominator_stake(&(vault_id.clone(), vault_id.account_id.clone()), amount);
+                    reference_pool
+                        .deposit_nominator_collateral(&(vault_id.clone(), vault_id.account_id.clone()), amount);
                 }
                 Action::WithdrawVaultCollateral => {
                     let vaults: Vec<_> = reference_pool
@@ -622,40 +649,29 @@ fn do_random_nomination_sequence() {
                         amount,
                     })
                     .dispatch(origin_of(vault_id.account_id.clone())));
-                    reference_pool.withdraw_nominator_stake(&(vault_id.clone(), vault_id.account_id.clone()), amount);
+                    reference_pool
+                        .withdraw_nominator_collateral(&(vault_id.clone(), vault_id.account_id.clone()), amount);
                 }
-                Action::DepositVaultStake => {
+                Action::SetSecureThreshold => {
                     let vault_id = vaults[rng.gen_range(0..vaults.len())].clone();
-                    let max_amount = VaultRegistryPallet::get_issuable_tokens_from_vault(&vault_id).unwrap();
-                    if max_amount.is_zero() {
-                        continue;
-                    }
-                    let amount = max_amount.with_amount(|x| rng.gen_range(0..x));
+                    let threshold = FixedU128::from_float(rng.gen_range(2.0..5.0));
 
-                    assert_ok!(VaultRegistryPallet::try_increase_to_be_issued_tokens(
-                        &vault_id, &amount
-                    ));
-                    assert_ok!(VaultRegistryPallet::issue_tokens(&vault_id, &amount));
+                    assert_ok!(
+                        RuntimeCall::VaultRegistry(VaultRegistryCall::set_custom_secure_threshold {
+                            currency_pair: vault_id.currencies.clone(),
+                            custom_threshold: Some(threshold),
+                        })
+                        .dispatch(origin_of(vault_id.account_id.clone()))
+                    );
 
-                    reference_pool.deposit_vault_stake(&vault_id, amount.amount());
+                    reference_pool.set_secure_threshold(&vault_id, threshold);
                 }
-                Action::WithdrawVaultStake => {
-                    // WithdrawVaultStake
+                Action::SetExchangeRate => {
                     let vault_id = vaults[rng.gen_range(0..vaults.len())].clone();
-                    let max_amount = VaultRegistryPallet::get_free_redeemable_tokens(&vault_id).unwrap();
-                    let amount = max_amount.with_amount(|x| rng.gen_range(0..x));
-
-                    assert_ok!(VaultRegistryPallet::try_increase_to_be_redeemed_tokens(
-                        &vault_id, &amount
-                    ));
-                    assert_ok!(VaultRegistryPallet::redeem_tokens(
-                        &vault_id,
-                        &amount,
-                        &amount.with_amount(|_| 0),
-                        &account_of(USER)
-                    ));
-
-                    reference_pool.withdraw_vault_stake(&vault_id, amount.amount());
+                    let currency_id = vault_id.collateral_currency();
+                    let exchange_rate = FixedU128::from_float(rng.gen_range(0.5..5.0));
+                    OraclePallet::_set_exchange_rate(currency_id, exchange_rate.clone()).unwrap();
+                    reference_pool.set_exchange_rate(currency_id, exchange_rate.clone());
                 }
                 Action::DistributeRewards => {
                     let amount = rng.gen_range(0..10_000_000_000);
@@ -694,8 +710,10 @@ fn do_random_nomination_sequence() {
             } else {
                 currency::get_free_balance::<Runtime>(REWARD_CURRENCY, &nominator_id).amount()
             };
-            // ensure the difference is very small, but allow some rounding errors..
-            assert!(abs_difference(actual_reward, expected_reward) <= expected_reward / 10_000 + 10);
+            // ensure the difference is small, but allow some rounding errors..
+            if abs_difference(actual_reward, expected_reward) > expected_reward / 10_000 + 10 {
+                assert_eq!(actual_reward, expected_reward);
+            }
         }
     })
 }

@@ -52,7 +52,8 @@ use sp_runtime::{
 };
 use sp_std::{marker, result::Result};
 use traits::{
-    ConvertToBigUint, LoansApi as LoansTrait, LoansMarketDataProvider, MarketInfo, MarketStatus, PriceFeeder,
+    ConvertToBigUint, LoansApi as LoansTrait, LoansMarketDataProvider, MarketInfo, MarketStatus, OnExchangerateChange,
+    PriceFeeder,
 };
 
 pub use orml_traits::currency::{OnDeposit, OnSlash, OnTransfer};
@@ -209,6 +210,9 @@ pub mod pallet {
         /// Reward asset id.
         #[pallet::constant]
         type RewardAssetId: Get<AssetIdOf<Self>>;
+
+        /// Hook for exchangerate changes.
+        type OnExchangerateChange: OnExchangerateChange<CurrencyId>;
     }
 
     #[pallet::error]
@@ -2112,5 +2116,14 @@ impl<T: Config> LoansMarketDataProvider<AssetIdOf<T>, BalanceOf<T>> for Pallet<T
             return rate;
         }
         None
+    }
+}
+
+impl<T: Config> OnExchangerateChange<CurrencyId> for Pallet<T> {
+    fn on_exchangerate_change(currency_id: &CurrencyId) {
+        // todo: propagate error
+        if let Ok(lend_token_id) = Pallet::<T>::lend_token_id(*currency_id) {
+            T::OnExchangerateChange::on_exchangerate_change(&lend_token_id)
+        }
     }
 }

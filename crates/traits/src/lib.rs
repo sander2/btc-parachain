@@ -29,3 +29,16 @@ pub trait OracleApi<Amount, CurrencyId> {
 pub trait NominationApi<VaultId, Amount> {
     fn deposit_vault_collateral(vault_id: &VaultId, amount: &Amount) -> Result<(), DispatchError>;
 }
+
+pub trait OnExchangerateChange<CurrencyId> {
+    fn on_exchangerate_change(currency_id: &CurrencyId);
+}
+
+#[impl_trait_for_tuples::impl_for_tuples(3)]
+impl<CurrencyId> OnExchangerateChange<CurrencyId> for Tuple {
+    fn on_exchangerate_change(currency_id: &CurrencyId) {
+        for_tuples!( #(
+            Tuple::on_exchangerate_change(currency_id);
+		)* );
+    }
+}
