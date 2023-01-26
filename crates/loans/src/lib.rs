@@ -449,13 +449,11 @@ pub mod pallet {
     /// Total amount of outstanding borrows of the underlying in this market
     /// CurrencyId -> Balance
     #[pallet::storage]
-    #[pallet::getter(fn total_borrows)]
     pub type TotalBorrows<T: Config> = StorageMap<_, Blake2_128Concat, CurrencyId<T>, BalanceOf<T>, ValueQuery>;
 
     /// Total amount of reserves of the underlying held in this market
     /// CurrencyId -> Balance
     #[pallet::storage]
-    #[pallet::getter(fn total_reserves)]
     pub type TotalReserves<T: Config> = StorageMap<_, Blake2_128Concat, CurrencyId<T>, BalanceOf<T>, ValueQuery>;
 
     /// Mapping of account addresses to outstanding borrow balances
@@ -1069,7 +1067,7 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
 
             ensure!(!borrow_amount.is_zero(), Error::<T>::InvalidAmount);
-            Self::do_borrow(&who, &Amount::new(borrow_amount,asset_id))?;
+            Self::do_borrow(&who, &Amount::new(borrow_amount, asset_id))?;
 
             Ok(().into())
         }
@@ -1208,25 +1206,23 @@ pub mod pallet {
             asset_id: CurrencyId<T>,
             #[pallet::compact] add_amount: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
+            let amount_to_transfer = Amount::new(add_amount, asset_id);
             T::ReserveOrigin::ensure_origin(origin)?;
             let payer = T::Lookup::lookup(payer)?;
             Self::ensure_active_market(asset_id)?;
             Self::accrue_interest(asset_id)?;
 
-            ensure!(!add_amount.is_zero(), Error::<T>::InvalidAmount);
-            let amount_to_transfer: Amount<T> = Amount::new(add_amount, asset_id);
+            ensure!(!amount_to_transfer.is_zero(), Error::<T>::InvalidAmount);
             amount_to_transfer.transfer(&payer, &Self::account_id())?;
             let total_reserves = Self::total_reserves(asset_id);
-            let total_reserves_new = total_reserves
-                .checked_add(add_amount)
-                .ok_or(ArithmeticError::Overflow)?;
-            TotalReserves::<T>::insert(asset_id, total_reserves_new);
+            let total_reserves_new = total_reserves.checked_add(&amount_to_transfer)?;
+            TotalReserves::<T>::insert(asset_id, total_reserves_new.amount());
 
             Self::deposit_event(Event::<T>::ReservesAdded {
                 payer,
                 currency_id: asset_id,
-                amount: add_amount,
-                new_reserve_amount: total_reserves_new,
+                amount: amount_to_transfer.amount(),
+                new_reserve_amount: total_reserves_new.amount(),
             });
 
             Ok(().into())
@@ -1253,24 +1249,23 @@ pub mod pallet {
             Self::ensure_active_market(asset_id)?;
             Self::accrue_interest(asset_id)?;
 
-            ensure!(!reduce_amount.is_zero(), Error::<T>::InvalidAmount);
+            let amount_to_transfer = Amount::new(reduce_amount, asset_id); // todo next
+
+            ensure!(!amount_to_transfer.is_zero(), Error::<T>::InvalidAmount);
             let total_reserves = Self::total_reserves(asset_id);
-            if reduce_amount > total_reserves {
+            if amount_to_transfer.gt(&total_reserves)? {
                 return Err(Error::<T>::InsufficientReserves.into());
             }
-            let total_reserves_new = total_reserves
-                .checked_sub(reduce_amount)
-                .ok_or(ArithmeticError::Underflow)?;
-            TotalReserves::<T>::insert(asset_id, total_reserves_new);
+            let total_reserves_new = total_reserves.checked_sub(&amount_to_transfer)?;
+            TotalReserves::<T>::insert(asset_id, total_reserves_new.amount());
 
-            let amount_to_transfer: Amount<T> = Amount::new(reduce_amount, asset_id);
             amount_to_transfer.transfer(&Self::account_id(), &receiver)?;
 
             Self::deposit_event(Event::<T>::ReservesReduced {
                 receiver,
                 currency_id: asset_id,
-                amount: reduce_amount,
-                new_reserve_amount: total_reserves_new,
+                amount: amount_to_transfer.amount(),
+                new_reserve_amount: total_reserves_new.amount(),
             });
 
             Ok(().into())
@@ -1319,6 +1314,13 @@ impl<T: Config> Pallet<T> {
         Amount::new(AccountDeposits::<T>::get(lend_token_id, supplier), lend_token_id)
     }
 
+    fn total_borrows(asset_id: CurrencyId<T>) -> Amount<T> {
+        Amount::new(TotalBorrows::<T>::get(asset_id), asset_id)
+    }
+
+    fn total_reserves(asset_id: CurrencyId<T>) -> Amount<T> {
+        Amount::new(TotalReserves::<T>::get(asset_id), asset_id)
+    }
     pub fn account_id() -> T::AccountId {
         T::PalletId::get().into_account_truncating()
     }
@@ -1365,9 +1367,7 @@ impl<T: Config> Pallet<T> {
         Ok(total_borrow_value)
     }
 
-    fn collateral_amount_value(
-        voucher: &Amount<T>,
-    ) -> Result<Amount<T>, DispatchError> {
+    fn collateral_amount_value(voucher: &Amount<T>) -> Result<Amount<T>, DispatchError> {
         let asset_id = Self::underlying_id(voucher.currency())?;
 
         let underlying = voucher.convert_to(asset_id)?;
@@ -1426,10 +1426,7 @@ impl<T: Config> Pallet<T> {
 
     /// Checks if the redeemer should be allowed to redeem tokens in given market.
     /// Takes into account both `free` and `locked` (i.e. deposited as collateral) lend_tokens of the redeemer.
-    fn redeem_allowed(
-        redeemer: &T::AccountId,
-        voucher: Amount<T>,
-    ) -> DispatchResult {
+    fn redeem_allowed(redeemer: &T::AccountId, voucher: Amount<T>) -> DispatchResult {
         let asset_id = Self::underlying_id(voucher.currency())?;
         log::trace!(
             target: "loans::redeem_allowed",
@@ -1438,7 +1435,7 @@ impl<T: Config> Pallet<T> {
             redeemer,
             voucher.amount(),
         );
-        if Self::balance(voucher.currency(), redeemer) < voucher.amount() {
+        if Self::balance(voucher.currency(), redeemer).lt(&voucher)? {
             return Err(Error::<T>::InsufficientDeposit.into());
         }
 
@@ -1456,10 +1453,7 @@ impl<T: Config> Pallet<T> {
     }
 
     #[require_transactional]
-    pub fn do_redeem_voucher(
-        who: &T::AccountId,
-        voucher: Amount<T>,
-    ) -> Result<BalanceOf<T>, DispatchError> {
+    pub fn do_redeem_voucher(who: &T::AccountId, voucher: Amount<T>) -> Result<BalanceOf<T>, DispatchError> {
         let asset_id = Self::underlying_id(voucher.currency())?;
 
         Self::redeem_allowed(who, voucher.clone())?;
@@ -1483,7 +1477,7 @@ impl<T: Config> Pallet<T> {
 
     /// Borrower shouldn't borrow more than their total collateral value allows
     fn borrow_allowed(borrower: &T::AccountId, borrow: &Amount<T>) -> DispatchResult {
-        Self::ensure_under_borrow_cap(borrow.currency(), borrow.amount())?;
+        Self::ensure_under_borrow_cap(borrow)?;
         Self::ensure_enough_cash(borrow)?;
         let borrow_value = Self::get_asset_value(borrow)?;
         Self::ensure_liquidity(borrower, borrow_value)?;
@@ -1516,7 +1510,7 @@ impl<T: Config> Pallet<T> {
         // As a result, when a user repays all borrows, `total_borrows` may be less than `account_borrows`
         // due to rounding, which would cause a `checked_sub` to fail with `ArithmeticError::Underflow`.
         // Use `saturating_sub` instead here:
-        let total_borrows_new = total_borrows.saturating_sub(repay_amount);
+        let total_borrows_new = total_borrows.saturating_sub(&amount_to_transfer)?;
         AccountBorrows::<T>::insert(
             asset_id,
             borrower,
@@ -1525,7 +1519,7 @@ impl<T: Config> Pallet<T> {
                 borrow_index: Self::borrow_index(asset_id),
             },
         );
-        TotalBorrows::<T>::insert(asset_id, total_borrows_new);
+        TotalBorrows::<T>::insert(asset_id, total_borrows_new.amount());
 
         Ok(())
     }
@@ -1548,7 +1542,8 @@ impl<T: Config> Pallet<T> {
     }
 
     /// Checks if the liquidation should be allowed to occur
-    fn liquidate_borrow_allowed( // todo: next
+    fn liquidate_borrow_allowed(
+        // todo: next
         borrower: &T::AccountId,
         underlying: &Amount<T>,
         market: &Market<BalanceOf<T>>,
@@ -1574,7 +1569,10 @@ impl<T: Config> Pallet<T> {
         let account_borrows_value = Self::get_asset_value(&account_borrows)?;
         let repay_value = Self::get_asset_value(&underlying)?;
 
-        if account_borrows_value.map(|x| market.close_factor.mul_ceil(x)).lt(&repay_value)? {
+        if account_borrows_value
+            .map(|x| market.close_factor.mul_ceil(x))
+            .lt(&repay_value)?
+        {
             return Err(Error::<T>::TooMuchRepay.into());
         }
 
@@ -1615,8 +1613,8 @@ impl<T: Config> Pallet<T> {
 
         let collateral_value = Self::get_asset_value(&borrower_deposits)?;
         // liquidate_value includes the premium of the liquidator
-        let liquidate_value = Self::get_asset_value(repayment_underlying)?
-            .checked_fixed_point_mul(&market.liquidate_incentive)?;
+        let liquidate_value =
+            Self::get_asset_value(repayment_underlying)?.checked_fixed_point_mul(&market.liquidate_incentive)?;
 
         if collateral_value.lt(&liquidate_value)? {
             return Err(Error::<T>::InsufficientCollateral.into());
@@ -1671,12 +1669,9 @@ impl<T: Config> Pallet<T> {
 
         // 2.the system reduces borrower's debt
         let account_borrows = Self::current_borrow_balance(borrower, liquidation_asset_id)?;
-        let account_borrows_new = account_borrows
-            .checked_sub(&amount_to_transfer)?;
+        let account_borrows_new = account_borrows.checked_sub(&amount_to_transfer)?;
         let total_borrows = Self::total_borrows(liquidation_asset_id);
-        let total_borrows_new = total_borrows
-            .checked_sub(repay_amount)
-            .ok_or(ArithmeticError::Underflow)?;
+        let total_borrows_new = total_borrows.checked_sub(&amount_to_transfer)?;
         AccountBorrows::<T>::insert(
             liquidation_asset_id,
             borrower,
@@ -1685,7 +1680,7 @@ impl<T: Config> Pallet<T> {
                 borrow_index: Self::borrow_index(liquidation_asset_id),
             },
         );
-        TotalBorrows::<T>::insert(liquidation_asset_id, total_borrows_new);
+        TotalBorrows::<T>::insert(liquidation_asset_id, total_borrows_new.amount());
 
         // update supply index before modify supply balance.
         Self::update_reward_supply_index(collateral_asset_id)?;
@@ -1765,23 +1760,29 @@ impl<T: Config> Pallet<T> {
     }
 
     /// Ensure supplying `amount` asset does not exceed the market's supply cap.
-    fn ensure_under_supply_cap(asset_id: CurrencyId<T>, amount: BalanceOf<T>) -> DispatchResult {
+    fn ensure_under_supply_cap(asset: &Amount<T>) -> DispatchResult {
+        let asset_id = asset.currency();
+
         let market = Self::market(asset_id)?;
         // Assets holded by market currently.
         let current_cash = Self::balance(asset_id, &Self::account_id());
-        let total_cash = current_cash.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
-        ensure!(total_cash <= market.supply_cap, Error::<T>::SupplyCapacityExceeded);
+        let total_cash = current_cash.checked_add(&asset)?;
+        ensure!(
+            total_cash.amount() <= market.supply_cap,
+            Error::<T>::SupplyCapacityExceeded
+        );
 
         Ok(())
     }
 
     /// Ensure borrowing `amount` asset does not exceed the market's borrow cap.
-    fn ensure_under_borrow_cap(asset_id: CurrencyId<T>, amount: BalanceOf<T>) -> DispatchResult {
+    fn ensure_under_borrow_cap(asset: &Amount<T>) -> DispatchResult {
+        let asset_id = asset.currency();
         let market = Self::market(asset_id)?;
         let total_borrows = Self::total_borrows(asset_id);
-        let new_total_borrows = total_borrows.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
+        let new_total_borrows = total_borrows.checked_add(&asset)?;
         ensure!(
-            new_total_borrows <= market.borrow_cap,
+            new_total_borrows.amount() <= market.borrow_cap,
             Error::<T>::BorrowCapacityExceeded
         );
 
@@ -1802,10 +1803,9 @@ impl<T: Config> Pallet<T> {
     /// - but getCashPrior is the entire balance of the contract:
     /// https://github.com/compound-finance/compound-protocol/blob/a3214f67b73310d547e00fc578e8355911c9d376/contracts/CToken.sol#L1125
     fn ensure_enough_cash(amount: &Amount<T>) -> DispatchResult {
-        let reducible_cash = Self::get_total_cash(amount.currency())
-            .checked_sub(Self::total_reserves(amount.currency()))
-            .ok_or(ArithmeticError::Underflow)?;
-        if reducible_cash < amount.amount() {
+        let reducible_cash =
+            Self::get_total_cash(amount.currency()).checked_sub(&Self::total_reserves(amount.currency()))?;
+        if reducible_cash.lt(&amount)? {
             return Err(Error::<T>::InsufficientCash.into());
         }
 
@@ -1862,20 +1862,25 @@ impl<T: Config> Pallet<T> {
     }
 
     /// Transferrable balance in the pallet account (`free - frozen`)
-    fn get_total_cash(asset_id: CurrencyId<T>) -> BalanceOf<T> {
-        orml_tokens::Pallet::<T>::reducible_balance(asset_id, &Self::account_id(), true)
+    fn get_total_cash(asset_id: CurrencyId<T>) -> Amount<T> {
+        Amount::new(
+            orml_tokens::Pallet::<T>::reducible_balance(asset_id, &Self::account_id(), true),
+            asset_id,
+        )
     }
 
     /// Get the total balance of `who`.
     /// Ignores any frozen balance of this account (`free + reserved`)
-    fn balance(asset_id: CurrencyId<T>, who: &T::AccountId) -> BalanceOf<T> {
-        <orml_tokens::Pallet<T> as MultiCurrency<T::AccountId>>::total_balance(asset_id, who)
+    fn balance(asset_id: CurrencyId<T>, who: &T::AccountId) -> Amount<T> {
+        let balance = <orml_tokens::Pallet<T> as MultiCurrency<T::AccountId>>::total_balance(asset_id, who);
+        Amount::new(balance, asset_id)
     }
 
     /// Total issuance of lending tokens (lend_tokens), given the underlying
-    pub fn total_supply(asset_id: CurrencyId<T>) -> Result<BalanceOf<T>, DispatchError> {
+    pub fn total_supply(asset_id: CurrencyId<T>) -> Result<Amount<T>, DispatchError> {
         let lend_token_id = Self::lend_token_id(asset_id)?;
-        Ok(orml_tokens::Pallet::<T>::total_issuance(lend_token_id))
+        let issuance = orml_tokens::Pallet::<T>::total_issuance(lend_token_id);
+        Ok(Amount::new(issuance, lend_token_id))
     }
 
     /// Free lending tokens (lend_tokens) of an account, given the underlying
@@ -1953,8 +1958,10 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, BalanceOf<T>, Amount<T>> for Pallet<T> {
     fn do_mint(supplier: &AccountIdOf<T>, asset_id: CurrencyId<T>, amount: BalanceOf<T>) -> Result<(), DispatchError> {
+        let amount_to_transfer: Amount<T> = Amount::new(amount, asset_id);
+
         Self::ensure_active_market(asset_id)?;
-        Self::ensure_under_supply_cap(asset_id, amount)?;
+        Self::ensure_under_supply_cap(&amount_to_transfer)?;
 
         Self::accrue_interest(asset_id)?;
 
@@ -1966,7 +1973,6 @@ impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, BalanceOf<T>, Amount<T
         let voucher_amount = Self::calc_collateral_amount(amount, exchange_rate)?;
         ensure!(!voucher_amount.is_zero(), Error::<T>::InvalidExchangeRate);
 
-        let amount_to_transfer: Amount<T> = Amount::new(amount, asset_id);
         amount_to_transfer.transfer(supplier, &Self::account_id())?;
 
         let lend_token_id = Self::lend_token_id(asset_id)?;
@@ -1981,10 +1987,7 @@ impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, BalanceOf<T>, Amount<T
         Ok(())
     }
 
-    fn do_borrow(
-        borrower: &AccountIdOf<T>,
-        borrow: &Amount<T>,
-    ) -> Result<(), DispatchError> {
+    fn do_borrow(borrower: &AccountIdOf<T>, borrow: &Amount<T>) -> Result<(), DispatchError> {
         let asset_id = borrow.currency();
         Self::ensure_active_market(asset_id)?;
 
@@ -1998,7 +2001,7 @@ impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, BalanceOf<T>, Amount<T
         let account_borrows = Self::current_borrow_balance(borrower, asset_id)?;
         let account_borrows_new = account_borrows.checked_add(borrow)?;
         let total_borrows = Self::total_borrows(asset_id);
-        let total_borrows_new = total_borrows.checked_add(borrow.amount()).ok_or(ArithmeticError::Overflow)?;
+        let total_borrows_new = total_borrows.checked_add(&borrow)?;
         AccountBorrows::<T>::insert(
             asset_id,
             borrower,
@@ -2007,7 +2010,7 @@ impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, BalanceOf<T>, Amount<T
                 borrow_index: Self::borrow_index(asset_id),
             },
         );
-        TotalBorrows::<T>::insert(asset_id, total_borrows_new);
+        TotalBorrows::<T>::insert(asset_id, total_borrows_new.amount());
         borrow.transfer(&Self::account_id(), borrower)?;
 
         Self::deposit_event(Event::<T>::Borrowed {
@@ -2033,8 +2036,7 @@ impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, BalanceOf<T>, Amount<T
 
         // Increase the amount of collateral deposited
         let deposit = Self::account_deposits(lend_token_amount.currency(), supplier);
-        let new_deposit = deposit
-            .checked_add(&lend_token_amount)?;
+        let new_deposit = deposit.checked_add(&lend_token_amount)?;
         AccountDeposits::<T>::insert(lend_token_amount.currency(), supplier, new_deposit.amount());
 
         Self::deposit_event(Event::<T>::DepositCollateral {
@@ -2045,10 +2047,7 @@ impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, BalanceOf<T>, Amount<T
         Ok(())
     }
 
-    fn do_withdraw_collateral(
-        supplier: &AccountIdOf<T>,
-        voucher: &Amount<T>,
-    ) -> Result<(), DispatchError> {
+    fn do_withdraw_collateral(supplier: &AccountIdOf<T>, voucher: &Amount<T>) -> Result<(), DispatchError> {
         // If the given asset_id is not a valid lend_token, fetching the underlying will fail
         let underlying_id = Self::underlying_id(voucher.currency())?;
         Self::ensure_active_market(underlying_id)?;
@@ -2093,10 +2092,7 @@ impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, BalanceOf<T>, Amount<T
         Ok(())
     }
 
-    fn do_repay_borrow(
-        borrower: &AccountIdOf<T>,
-        borrow: &Amount<T>,
-    ) -> Result<(), DispatchError> {
+    fn do_repay_borrow(borrower: &AccountIdOf<T>, borrow: &Amount<T>) -> Result<(), DispatchError> {
         let asset_id = borrow.currency();
         let amount = borrow.amount();
         Self::ensure_active_market(asset_id)?;
@@ -2121,7 +2117,7 @@ impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, BalanceOf<T>, Amount<T
         Self::accrue_interest(asset_id)?;
 
         let voucher = amount.convert_to(Self::lend_token_id(asset_id)?)?;
-        
+
         let redeem_amount = Self::do_redeem_voucher(supplier, voucher)?;
         Self::deposit_event(Event::<T>::Redeemed {
             account_id: supplier.clone(),
