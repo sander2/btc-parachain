@@ -26,8 +26,7 @@ pub trait LoansApi<CurrencyId, AccountId, Balance, Amount> {
     fn do_mint(supplier: &AccountId, asset_id: CurrencyId, amount: Balance) -> Result<(), DispatchError>;
     fn do_borrow(borrower: &AccountId, borrow: &Amount) -> Result<(), DispatchError>;
     fn do_deposit_collateral(supplier: &AccountId, lend_tokens: &Amount) -> Result<(), DispatchError>;
-    fn do_withdraw_collateral(supplier: &AccountId, voucher: &Amount)
-        -> Result<(), DispatchError>;
+    fn do_withdraw_collateral(supplier: &AccountId, voucher: &Amount) -> Result<(), DispatchError>;
     fn do_repay_borrow(borrower: &AccountId, borrow: &Amount) -> Result<(), DispatchError>;
     fn do_redeem(supplier: &AccountId, asset_id: CurrencyId, amount: Balance) -> Result<(), DispatchError>;
     fn recompute_underlying_amount(lend_tokens: &Amount) -> Result<Amount, DispatchError>;

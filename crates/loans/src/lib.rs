@@ -1667,7 +1667,8 @@ impl<T: Config> Pallet<T> {
         repayment.transfer(liquidator, &Self::account_id())?;
 
         // 2.the system reduces borrower's debt
-        let account_borrows_new = Self::current_borrow_balance(borrower, liquidation_asset_id)?.checked_sub(&repayment)?;
+        let account_borrows_new =
+            Self::current_borrow_balance(borrower, liquidation_asset_id)?.checked_sub(&repayment)?;
         let total_borrows_new = Self::total_borrows(liquidation_asset_id).checked_sub(&repayment)?;
         AccountBorrows::<T>::insert(
             liquidation_asset_id,
@@ -1733,10 +1734,7 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    pub fn lock_if_account_deposited(
-        account_id: &T::AccountId,
-        lend_tokens: &Amount<T>,
-    ) -> DispatchResult {
+    pub fn lock_if_account_deposited(account_id: &T::AccountId, lend_tokens: &Amount<T>) -> DispatchResult {
         // if the receiver already has their collateral deposited
         let deposit = Pallet::<T>::account_deposits(lend_tokens.currency(), account_id);
         if !deposit.is_zero() {
@@ -2017,10 +2015,7 @@ impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, BalanceOf<T>, Amount<T
         Ok(())
     }
 
-    fn do_deposit_collateral(
-        supplier: &AccountIdOf<T>,
-        lend_token_amount: &Amount<T>,
-    ) -> Result<(), DispatchError> {
+    fn do_deposit_collateral(supplier: &AccountIdOf<T>, lend_token_amount: &Amount<T>) -> Result<(), DispatchError> {
         // If the given asset_id is not a valid lend_token, fetching the underlying will fail
         let underlying_id = Self::underlying_id(lend_token_amount.currency())?;
         Self::ensure_active_market(underlying_id)?;
