@@ -1089,7 +1089,7 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
 
             ensure!(!repay_amount.is_zero(), Error::<T>::InvalidAmount);
-            Self::do_repay_borrow(&who, asset_id, repay_amount)?;
+            Self::do_repay_borrow(&who, &Amount::new(repay_amount, asset_id))?;
 
             Ok(().into())
         }
@@ -1106,7 +1106,7 @@ pub mod pallet {
             Self::accrue_interest(asset_id)?;
             let account_borrows = Self::current_borrow_balance(&who, asset_id)?;
             ensure!(!account_borrows.is_zero(), Error::<T>::InvalidAmount);
-            Self::do_repay_borrow(&who, asset_id, account_borrows.amount())?; // todo: next
+            Self::do_repay_borrow(&who, &account_borrows)?;
 
             Ok(().into())
         }
@@ -2095,9 +2095,10 @@ impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, BalanceOf<T>, Amount<T
 
     fn do_repay_borrow(
         borrower: &AccountIdOf<T>,
-        asset_id: CurrencyId<T>,
-        amount: BalanceOf<T>,
+        borrow: &Amount<T>,
     ) -> Result<(), DispatchError> {
+        let asset_id = borrow.currency();
+        let amount = borrow.amount();
         Self::ensure_active_market(asset_id)?;
         Self::accrue_interest(asset_id)?;
         let account_borrows = Self::current_borrow_balance(borrower, asset_id)?;
