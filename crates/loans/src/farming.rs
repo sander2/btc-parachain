@@ -154,7 +154,7 @@ impl<T: Config> Pallet<T> {
                 let current_borrow_index = BorrowIndex::<T>::get(asset_id);
                 let base_borrow_amount = current_borrow_index
                     .reciprocal()
-                    .and_then(|r| r.checked_mul_int(current_borrow_amount))
+                    .and_then(|r| r.checked_mul_int(current_borrow_amount.amount()))
                     .ok_or(ArithmeticError::Overflow)?;
                 let reward_delta = Self::calculate_reward_delta(base_borrow_amount, delta_index)?;
                 *total_reward = total_reward

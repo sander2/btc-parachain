@@ -124,6 +124,15 @@ mod math {
             )
         }
 
+        pub fn checked_accrue(&mut self, other: &Self) -> Result<&mut Self, DispatchError> {
+            *self = self.checked_fn(
+                other,
+                <BalanceOf<T> as CheckedAdd>::checked_add,
+                ArithmeticError::Overflow,
+            )?;
+            Ok(self)
+        }
+
         pub fn checked_sub(&self, other: &Self) -> Result<Self, DispatchError> {
             self.checked_fn(
                 other,
