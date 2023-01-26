@@ -1626,9 +1626,8 @@ impl<T: Config> Pallet<T> {
         Self::liquidated_transfer(
             &liquidator,
             &borrower,
-            liquidation_asset_id,
             collateral_asset_id,
-            repayment_underlying.amount(),
+            &repayment_underlying,
             real_collateral_underlying_amount,
             &market,
         )?;
@@ -1640,21 +1639,22 @@ impl<T: Config> Pallet<T> {
     fn liquidated_transfer(
         liquidator: &T::AccountId,
         borrower: &T::AccountId,
-        liquidation_asset_id: CurrencyId<T>,
         collateral_asset_id: CurrencyId<T>,
-        repay_amount: BalanceOf<T>,
+        repayment: &Amount<T>,
         collateral_underlying_amount: BalanceOf<T>,
         market: &Market<BalanceOf<T>>,
     ) -> DispatchResult {
+        let liquidation_asset_id = repayment.currency();
+
         log::trace!(
             target: "loans::liquidated_transfer",
             "liquidator: {:?}, borrower: {:?}, liquidation_asset_id: {:?},
                 collateral_asset_id: {:?}, repay_amount: {:?}, collateral_underlying_amount: {:?}",
             liquidator,
             borrower,
-            liquidation_asset_id,
+            repayment.currency(),
             collateral_asset_id,
-            repay_amount,
+            repayment.amount(),
             collateral_underlying_amount
         );
 
@@ -1664,14 +1664,11 @@ impl<T: Config> Pallet<T> {
 
         // 1.liquidator repays borrower's debt,
         // transfer from liquidator to module account
-        let amount_to_transfer: Amount<T> = Amount::new(repay_amount, liquidation_asset_id);
-        amount_to_transfer.transfer(liquidator, &Self::account_id())?;
+        repayment.transfer(liquidator, &Self::account_id())?;
 
         // 2.the system reduces borrower's debt
-        let account_borrows = Self::current_borrow_balance(borrower, liquidation_asset_id)?;
-        let account_borrows_new = account_borrows.checked_sub(&amount_to_transfer)?;
-        let total_borrows = Self::total_borrows(liquidation_asset_id);
-        let total_borrows_new = total_borrows.checked_sub(&amount_to_transfer)?;
+        let account_borrows_new = Self::current_borrow_balance(borrower, liquidation_asset_id)?.checked_sub(&repayment)?;
+        let total_borrows_new = Self::total_borrows(liquidation_asset_id).checked_sub(&repayment)?;
         AccountBorrows::<T>::insert(
             liquidation_asset_id,
             borrower,
@@ -1729,7 +1726,7 @@ impl<T: Config> Pallet<T> {
             borrower: borrower.clone(),
             liquidation_currency_id: liquidation_asset_id,
             collateral_currency_id: collateral_asset_id,
-            repay_amount,
+            repay_amount: repayment.amount(),
             collateral_underlying_amount,
         });
 
