@@ -137,7 +137,7 @@ pub struct PostDeposit<T>(marker::PhantomData<T>);
 impl<T: Config> OnDeposit<T::AccountId, CurrencyId<T>, BalanceOf<T>> for PostDeposit<T> {
     fn on_deposit(currency_id: CurrencyId<T>, account_id: &T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
         if currency_id.is_lend_token() {
-            Pallet::<T>::lock_if_account_deposited(account_id, currency_id, amount)?;
+            Pallet::<T>::lock_if_account_deposited(account_id, &Amount::new(amount, currency_id))?;
         }
         Ok(())
     }
@@ -175,7 +175,7 @@ impl<T: Config> OnTransfer<T::AccountId, CurrencyId<T>, BalanceOf<T>> for PostTr
         amount: BalanceOf<T>,
     ) -> DispatchResult {
         if currency_id.is_lend_token() {
-            Pallet::<T>::lock_if_account_deposited(to, currency_id, amount)?;
+            Pallet::<T>::lock_if_account_deposited(to, &Amount::new(amount, currency_id))?;
         }
         Ok(())
     }
@@ -1131,7 +1131,7 @@ pub mod pallet {
             // This check could fail if `withdraw_all_collateral()` leaves leftover lend_tokens locked.
             // However the current implementation is guaranteed to withdraw everything.
             ensure!(reserved_lend_tokens.is_zero(), Error::<T>::TokensAlreadyLocked);
-            Self::do_deposit_collateral(&who, free_lend_tokens.currency(), free_lend_tokens.amount())?;
+            Self::do_deposit_collateral(&who, &free_lend_tokens)?;
             Ok(().into())
         }
 
@@ -1738,15 +1738,14 @@ impl<T: Config> Pallet<T> {
 
     pub fn lock_if_account_deposited(
         account_id: &T::AccountId,
-        lend_token_id: CurrencyId<T>,
-        incoming_amount: BalanceOf<T>,
+        lend_tokens: &Amount<T>,
     ) -> DispatchResult {
         // if the receiver already has their collateral deposited
-        let deposit = Pallet::<T>::account_deposits(lend_token_id, account_id);
+        let deposit = Pallet::<T>::account_deposits(lend_tokens.currency(), account_id);
         if !deposit.is_zero() {
             // then any incoming `lend_tokens` must automatically be deposited as collateral
             // to enforce the "collateral toggle"
-            Self::do_deposit_collateral(account_id, lend_token_id, incoming_amount)?;
+            Self::do_deposit_collateral(account_id, &lend_tokens)?;
         }
         Ok(())
     }
@@ -2023,10 +2022,8 @@ impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, BalanceOf<T>, Amount<T
 
     fn do_deposit_collateral(
         supplier: &AccountIdOf<T>,
-        asset_id: CurrencyId<T>,
-        amount: BalanceOf<T>,
+        lend_token_amount: &Amount<T>,
     ) -> Result<(), DispatchError> {
-        let lend_token_amount: Amount<T> = Amount::new(amount, asset_id);
         // If the given asset_id is not a valid lend_token, fetching the underlying will fail
         let underlying_id = Self::underlying_id(lend_token_amount.currency())?;
         Self::ensure_active_market(underlying_id)?;
