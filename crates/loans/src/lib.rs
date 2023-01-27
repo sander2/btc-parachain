@@ -1334,17 +1334,21 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+    #[cfg_attr(any(test, feature = "integration-tests"), visibility::make(pub))]
     fn account_deposits(lend_token_id: CurrencyId<T>, supplier: &T::AccountId) -> Amount<T> {
         Amount::new(AccountDeposits::<T>::get(lend_token_id, supplier), lend_token_id)
     }
 
+    #[cfg_attr(any(test, feature = "integration-tests"), visibility::make(pub))]
     fn total_borrows(asset_id: CurrencyId<T>) -> Amount<T> {
         Amount::new(TotalBorrows::<T>::get(asset_id), asset_id)
     }
 
+    #[cfg_attr(any(test, feature = "integration-tests"), visibility::make(pub))]
     fn total_reserves(asset_id: CurrencyId<T>) -> Amount<T> {
         Amount::new(TotalReserves::<T>::get(asset_id), asset_id)
     }
+
     pub fn account_id() -> T::AccountId {
         T::PalletId::get().into_account_truncating()
     }
@@ -1448,7 +1452,7 @@ impl<T: Config> Pallet<T> {
 
     /// Checks if the redeemer should be allowed to redeem tokens in given market.
     /// Takes into account both `free` and `locked` (i.e. deposited as collateral) lend_tokens of the redeemer.
-    fn redeem_allowed(redeemer: &T::AccountId, voucher: Amount<T>) -> DispatchResult {
+    fn redeem_allowed(redeemer: &T::AccountId, voucher: &Amount<T>) -> DispatchResult {
         let asset_id = Self::underlying_id(voucher.currency())?;
         log::trace!(
             target: "loans::redeem_allowed",
@@ -1478,7 +1482,7 @@ impl<T: Config> Pallet<T> {
     pub fn do_redeem_voucher(who: &T::AccountId, voucher: Amount<T>) -> Result<Amount<T>, DispatchError> {
         let asset_id = Self::underlying_id(voucher.currency())?;
 
-        Self::redeem_allowed(who, voucher.clone())?;
+        Self::redeem_allowed(who, &voucher)?;
         Self::update_reward_supply_index(asset_id)?;
         Self::distribute_supplier_reward(asset_id, who)?;
 
@@ -1661,8 +1665,9 @@ impl<T: Config> Pallet<T> {
     ) -> DispatchResult {
         let liquidation_asset_id = repayment.currency();
         let collateral_asset_id = collateral_underlying.currency();
+        env_logger::init();
 
-        log::trace!(
+        log::error!(
             target: "loans::liquidated_transfer",
             "liquidator: {:?}, borrower: {:?}, liquidation_asset_id: {:?},
                 collateral_asset_id: {:?}, repay_amount: {:?}, collateral_underlying.amount(): {:?}",

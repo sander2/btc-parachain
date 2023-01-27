@@ -388,6 +388,28 @@ mod testing_utils {
         }
     }
 
+    impl<T: Config<Balance = u128>> Add<u128> for Amount<T> {
+        type Output = Self;
+
+        fn add(self, other: u128) -> Self {
+            Self {
+                amount: self.amount + other,
+                currency_id: self.currency_id,
+            }
+        }
+    }
+
+    impl<T: Config<Balance = u128>> Sub<u128> for Amount<T> {
+        type Output = Self;
+
+        fn sub(self, other: u128) -> Self {
+            Self {
+                amount: self.amount - other,
+                currency_id: self.currency_id,
+            }
+        }
+    }
+
     impl<T: Config> PartialOrd for Amount<T> {
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
             if self.currency_id != other.currency_id {
