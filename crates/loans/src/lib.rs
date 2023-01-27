@@ -1846,17 +1846,6 @@ impl<T: Config> Pallet<T> {
         Err(Error::<T>::InsufficientLiquidity.into())
     }
 
-    /// Convert an amount of underlying currency to the associated lend token
-    pub fn calc_collateral_amount(
-        underlying_amount: BalanceOf<T>,
-        exchange_rate: Rate,
-    ) -> Result<BalanceOf<T>, DispatchError> {
-        Ok(FixedU128::from_inner(underlying_amount)
-            .checked_div(&exchange_rate)
-            .map(|r| r.into_inner())
-            .ok_or(ArithmeticError::Underflow)?)
-    }
-
     /// Transferrable balance in the pallet account (`free - frozen`)
     fn get_total_cash(asset_id: CurrencyId<T>) -> Amount<T> {
         Amount::new(
@@ -2140,9 +2129,13 @@ impl<T: Config> LoansTrait<CurrencyId<T>, AccountIdOf<T>, Amount<T>> for Pallet<
         Self::ensure_active_market(underlying.currency())?;
         Self::accrue_interest(underlying.currency())?;
         let exchange_rate = Self::exchange_rate_stored(underlying.currency())?;
-        let underlying_amount = Self::calc_collateral_amount(underlying.amount(), exchange_rate)?;
+        let lend_amount = FixedU128::from_inner(underlying.amount())
+            .checked_div(&exchange_rate)
+            .map(|r| r.into_inner())
+            .ok_or(ArithmeticError::Underflow)?;
+
         let lend_token_id = Self::lend_token_id(underlying.currency())?;
-        Ok(Amount::new(underlying_amount, lend_token_id))
+        Ok(Amount::new(lend_amount, lend_token_id))
     }
 }
 
