@@ -11,15 +11,21 @@ use traits::OracleApi;
 
 #[test]
 fn utilization_rate_works() {
-    let f = |x| Amount::new(x, Token(KSM)); 
+    let f = |x| Amount::new(x, Token(KSM));
     // 50% borrow
-    assert_eq!(Loans::calc_utilization_ratio(&f(1), &f(1), &f(0)).unwrap(), Ratio::from_percent(50));
+    assert_eq!(
+        Loans::calc_utilization_ratio(&f(1), &f(1), &f(0)).unwrap(),
+        Ratio::from_percent(50)
+    );
     assert_eq!(
         Loans::calc_utilization_ratio(&f(100), &f(100), &f(0)).unwrap(),
         Ratio::from_percent(50)
     );
     // no borrow
-    assert_eq!(Loans::calc_utilization_ratio(&f(1), &f(0), &f(0)).unwrap(), Ratio::zero());
+    assert_eq!(
+        Loans::calc_utilization_ratio(&f(1), &f(0), &f(0)).unwrap(),
+        Ratio::zero()
+    );
     // full borrow
     assert_eq!(
         Loans::calc_utilization_ratio(&f(0), &f(1), &f(0)).unwrap(),
@@ -52,7 +58,7 @@ fn interest_rate_model_works() {
         let total_supply = FixedU128::from_inner(million_unit(200))
             .checked_div(&Loans::exchange_rate(Token(DOT)))
             .map(|r| r.into_inner())
-        .unwrap();
+            .unwrap();
         assert_eq!(Loans::total_supply(Token(DOT)).unwrap().amount(), total_supply);
 
         let borrow_snapshot = Loans::account_borrows(Token(DOT), ALICE);

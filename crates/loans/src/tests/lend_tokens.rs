@@ -169,7 +169,7 @@ fn transfer_lend_token_works() {
         );
         // DAVE Redeem 51 KINT should cause InsufficientDeposit
         assert_noop!(
-            Loans::redeem_allowed(&DAVE, &Amount::new(unit(51) * 50, KINT)),
+            Loans::redeem_allowed(&DAVE, &Amount::new(unit(51) * 50, LEND_KINT)),
             Error::<Test>::InsufficientDeposit
         );
 
@@ -179,7 +179,7 @@ fn transfer_lend_token_works() {
             unit(50)
         );
         // ALICE Redeem 50 KINT should be succeeded
-        assert_ok!(Loans::redeem_allowed(&ALICE, &Amount::new(unit(50) * 50, KINT)));
+        assert_ok!(Loans::redeem_allowed(&ALICE, &Amount::new(unit(50) * 50, LEND_KINT)));
     })
 }
 
@@ -204,7 +204,7 @@ fn transfer_lend_tokens_under_collateral_does_not_work() {
 
         // Not allowed to redeem 20 lend_tokens because they are locked
         assert_noop!(
-            Loans::redeem_allowed(&DAVE, &Amount::new(unit(20) * 50, KINT)),
+            Loans::redeem_allowed(&DAVE, &Amount::new(unit(20) * 50, LEND_KINT)),
             Error::<Test>::LockedTokensCannotBeRedeemed
         );
         // Not allowed to transfer 20 lend_tokens because they are locked
@@ -215,7 +215,10 @@ fn transfer_lend_tokens_under_collateral_does_not_work() {
         // First, withdraw some tokens. Note that directly withdrawing part of the locked
         // lend_tokens is not possible through extrinsics. Users can only withdraw the full
         // amount for a currency via extrinsics, to enforce the collateral toggle.
-        assert_ok!(Loans::do_withdraw_collateral(&DAVE, &Amount::new(unit(20) * 50, LEND_KINT)));
+        assert_ok!(Loans::do_withdraw_collateral(
+            &DAVE,
+            &Amount::new(unit(20) * 50, LEND_KINT)
+        ));
         // Check entries from orml-tokens directly
         assert_eq!(free_balance(LEND_KINT, &DAVE), unit(20) * 50);
         assert_eq!(reserved_balance(LEND_KINT, &DAVE), unit(80) * 50);
@@ -248,6 +251,6 @@ fn transfer_lend_tokens_under_collateral_does_not_work() {
         );
         // ALICE Redeem 20 KINT should be succeeded
         // Also means that transfer lend_token succeed
-        assert_ok!(Loans::redeem_allowed(&ALICE, &Amount::new(unit(20) * 50,KINT)));
+        assert_ok!(Loans::redeem_allowed(&ALICE, &Amount::new(unit(20) * 50, LEND_KINT)));
     })
 }

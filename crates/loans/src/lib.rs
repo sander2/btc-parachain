@@ -1665,7 +1665,6 @@ impl<T: Config> Pallet<T> {
     ) -> DispatchResult {
         let liquidation_asset_id = repayment.currency();
         let collateral_asset_id = collateral_underlying.currency();
-        env_logger::init();
 
         log::error!(
             target: "loans::liquidated_transfer",

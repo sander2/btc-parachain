@@ -228,8 +228,8 @@ pub fn with_price(
             (_, currency) if currency == DEFAULT_WRAPPED_CURRENCY => {
                 return MockResult::Return(Ok(Amount::new(amount.amount(), DEFAULT_WRAPPED_CURRENCY)));
             }
-            (currency, _) if currency == DEFAULT_WRAPPED_CURRENCY => {
-                return MockResult::Return(Ok(amount.clone()));
+            (currency, x) if currency == DEFAULT_WRAPPED_CURRENCY => {
+                return MockResult::Return(Ok(Amount::new(amount.amount(), x)));
             }
             (a, b) if a == b => {
                 return MockResult::Return(Ok(amount.clone()));

@@ -42,7 +42,11 @@ fn liquidate_borrow_allowed_works() {
             Loans::liquidate_borrow_allowed(&ALICE, &Amount::new(unit(51), KSM), &ksm_market),
             Error::<Test>::TooMuchRepay
         );
-        assert_ok!(Loans::liquidate_borrow_allowed(&ALICE, &Amount::new(unit(50), KSM), &ksm_market));
+        assert_ok!(Loans::liquidate_borrow_allowed(
+            &ALICE,
+            &Amount::new(unit(50), KSM),
+            &ksm_market
+        ));
     })
 }
 
@@ -239,7 +243,7 @@ fn repay_currency_auto_locking_works() {
             unit(50),
             KBTC
         ),);
-        let final_borrower_locked_collateral =Loans::account_deposits(LEND_KBTC, &ALICE);
+        let final_borrower_locked_collateral = Loans::account_deposits(LEND_KBTC, &ALICE);
         let final_liquidator_locked_collateral = Loans::account_deposits(LEND_KBTC, &BOB);
         let actual_liquidator_reward = final_liquidator_locked_collateral
             .checked_sub(&initial_liquidator_locked_collateral)

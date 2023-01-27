@@ -38,7 +38,10 @@ fn repay_borrow_all_no_underflow() {
 
         accrue_interest_per_block(Token(KSM), 100, 9);
 
-        assert_eq!(Loans::current_borrow_balance(&ALICE, Token(KSM)).unwrap().amount(), 10000005);
+        assert_eq!(
+            Loans::current_borrow_balance(&ALICE, Token(KSM)).unwrap().amount(),
+            10000005
+        );
         // FIXME since total_borrows is too small and we accrue internal on it every 100 seconds
         // accrue_interest fails every time
         // as you can see the current borrow balance is not equal to total_borrows anymore
@@ -50,10 +53,9 @@ fn repay_borrow_all_no_underflow() {
         assert_eq!(Tokens::balance(Token(KSM), &ALICE), unit(800) - 5);
 
         assert_eq!(
-            Loans::exchange_rate(Token(DOT)).saturating_mul_int(Loans::account_deposits(
-                Loans::lend_token_id(Token(KSM)).unwrap(),
-                &ALICE
-            ).amount()),
+            Loans::exchange_rate(Token(DOT)).saturating_mul_int(
+                Loans::account_deposits(Loans::lend_token_id(Token(KSM)).unwrap(), &ALICE).amount()
+            ),
             unit(200)
         );
 

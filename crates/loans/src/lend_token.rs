@@ -142,9 +142,9 @@ impl<T: Config> Pallet<T> {
 
         let exchange_rate = Self::exchange_rate(underlying_id);
         let amount = FixedU128::from_inner(reducible_underlying_amount)
-        .checked_div(&exchange_rate)
-        .map(|r| r.into_inner())
-        .ok_or(ArithmeticError::Underflow)?;
+            .checked_div(&exchange_rate)
+            .map(|r| r.into_inner())
+            .ok_or(ArithmeticError::Underflow)?;
         Ok(amount)
     }
 }
