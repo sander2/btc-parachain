@@ -59,7 +59,7 @@ impl<T: Config> AccountLiquidity<T> {
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, Default, TypeInfo)]
 pub struct BorrowSnapshot<Balance> {
     /// Principal Total balance (with accrued interest), after applying the most recent balance-changing action
-    pub principal: Balance,
+    pub principal: Balance, // amount of underlying borrowed, to be paid back eventually
     /// InterestIndex Global borrowIndex as of the most recent balance-changing action
     pub borrow_index: Rate,
 }
