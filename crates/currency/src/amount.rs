@@ -259,6 +259,10 @@ mod math {
                 currency_id: self.currency_id,
             })
         }
+
+        pub fn mul_ratio_floor(&self, ratio: primitives::Ratio) -> Self {
+            self.map(|x| ratio.mul_floor(x))
+        }
     }
 }
 
