@@ -1,5 +1,5 @@
 use crate::{mock::*, tests::Loans, Markets};
-use currency::{Amount, CurrencyConversion};
+use currency::Amount;
 use frame_support::assert_ok;
 use mocktopus::mocking::Mockable;
 use primitives::{CurrencyId::Token, Rate, Ratio, DOT, KSM, SECONDS_PER_YEAR};
@@ -11,24 +11,24 @@ use traits::OracleApi;
 
 #[test]
 fn utilization_rate_works() {
-    let f = |x| Amount::new(x, Token(KSM));
+    let ksm = |x| Amount::new(x, Token(KSM));
     // 50% borrow
     assert_eq!(
-        Loans::calc_utilization_ratio(&f(1), &f(1), &f(0)).unwrap(),
+        Loans::calc_utilization_ratio(&ksm(1), &ksm(1), &ksm(0)).unwrap(),
         Ratio::from_percent(50)
     );
     assert_eq!(
-        Loans::calc_utilization_ratio(&f(100), &f(100), &f(0)).unwrap(),
+        Loans::calc_utilization_ratio(&ksm(100), &ksm(100), &ksm(0)).unwrap(),
         Ratio::from_percent(50)
     );
     // no borrow
     assert_eq!(
-        Loans::calc_utilization_ratio(&f(1), &f(0), &f(0)).unwrap(),
+        Loans::calc_utilization_ratio(&ksm(1), &ksm(0), &ksm(0)).unwrap(),
         Ratio::zero()
     );
     // full borrow
     assert_eq!(
-        Loans::calc_utilization_ratio(&f(0), &f(1), &f(0)).unwrap(),
+        Loans::calc_utilization_ratio(&ksm(0), &ksm(1), &ksm(0)).unwrap(),
         Ratio::from_percent(100)
     );
 }

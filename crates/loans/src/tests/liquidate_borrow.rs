@@ -6,7 +6,6 @@ use crate::{
     tests::unit,
     Amount, Error, Market, MarketState,
 };
-use currency::CurrencyConversion;
 use frame_support::{assert_noop, assert_ok, traits::fungibles::Inspect};
 use mocktopus::mocking::Mockable;
 use primitives::{

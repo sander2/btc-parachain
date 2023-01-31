@@ -264,7 +264,6 @@ pub(crate) fn set_mock_balances() {
 
 #[cfg(test)]
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-    use currency::CurrencyConversion;
     use mocktopus::mocking::Mockable;
 
     let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
@@ -305,7 +304,6 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 
 #[cfg(test)]
 pub(crate) fn new_test_ext_no_markets() -> sp_io::TestExternalities {
-    use currency::CurrencyConversion;
     use mocktopus::mocking::Mockable;
 
     let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();

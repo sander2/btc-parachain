@@ -21,7 +21,7 @@ mod lend_tokens;
 mod liquidate_borrow;
 mod market;
 
-use currency::{Amount, CurrencyConversion};
+use currency::Amount;
 use frame_support::{assert_noop, assert_ok};
 
 use mocktopus::mocking::Mockable;
@@ -86,15 +86,15 @@ fn loans_native_token_works() {
         assert_eq!(BorrowIndex::<Test>::get(KINT), Rate::one());
         assert_eq!(ExchangeRate::<Test>::get(KINT), Rate::saturating_from_rational(2, 100));
         assert_ok!(Loans::mint(RuntimeOrigin::signed(DAVE), KINT, unit(1000)));
-        let redeem_kint = Loans::lend_token_id(KINT).unwrap();
+        let lend_kint = Loans::lend_token_id(KINT).unwrap();
 
         // Redeem 1001 KINT should cause InsufficientDeposit
         assert_noop!(
-            Loans::redeem_allowed(&DAVE, &Amount::new(unit(50050), redeem_kint)),
+            Loans::redeem_allowed(&DAVE, &Amount::new(unit(50050), lend_kint)),
             Error::<Test>::InsufficientDeposit
         );
         // Redeem 1000 KINT is ok
-        assert_ok!(Loans::redeem_allowed(&DAVE, &Amount::new(unit(50000), redeem_kint)));
+        assert_ok!(Loans::redeem_allowed(&DAVE, &Amount::new(unit(50000), lend_kint)));
 
         assert_ok!(Loans::deposit_all_collateral(RuntimeOrigin::signed(DAVE), KINT));
         assert_eq!(Loans::free_lend_tokens(KINT, &DAVE).unwrap().is_zero(), true);
@@ -956,20 +956,20 @@ fn current_borrow_balance_works() {
     })
 }
 
-// TODO: convert to recompute_collateral_amount test
-// #[test]
-// fn calc_collateral_amount_works() {
-//     let exchange_rate = Rate::saturating_from_rational(3, 10);
-//     assert_eq!(Loans::calc_collateral_amount(1000, exchange_rate).unwrap(), 3333);
-//     assert_eq!(
-//         Loans::calc_collateral_amount(u128::MAX, exchange_rate),
-//         Err(DispatchError::Arithmetic(ArithmeticError::Underflow))
-//     );
-//
-//     // relative test: prevent_the_exchange_rate_attack
-//     let exchange_rate = Rate::saturating_from_rational(30000, 1);
-//     assert_eq!(Loans::calc_collateral_amount(10000, exchange_rate).unwrap(), 0);
-// }
+#[test]
+// note: this function is testing `calc_collateral_amount`, which is only used in testing code
+fn calc_collateral_amount_works() {
+    let exchange_rate = Rate::saturating_from_rational(3, 10);
+    assert_eq!(Loans::calc_collateral_amount(1000, exchange_rate).unwrap(), 3333);
+    assert_eq!(
+        Loans::calc_collateral_amount(u128::MAX, exchange_rate),
+        Err(DispatchError::Arithmetic(ArithmeticError::Underflow))
+    );
+
+    // relative test: prevent_the_exchange_rate_attack
+    let exchange_rate = Rate::saturating_from_rational(30000, 1);
+    assert_eq!(Loans::calc_collateral_amount(10000, exchange_rate).unwrap(), 0);
+}
 
 #[test]
 fn ensure_enough_cash_works() {

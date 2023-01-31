@@ -1177,9 +1177,6 @@ pub mod pallet {
             Ok(().into())
         }
 
-        // sander: liquidated account will lose some amount of lend_token(collateral_asset_id)
-        // sander: liquidator will receive
-
         /// The caller liquidates the borrower's collateral. This extrinsic may need to be called multiple
         /// times to completely clear the borrower's bad debt, because of the `close_factor` parameter in
         /// the market. See the `close_factor_may_require_multiple_liquidations_to_clear_bad_debt` unit
@@ -1274,7 +1271,7 @@ pub mod pallet {
             Self::ensure_active_market(asset_id)?;
             Self::accrue_interest(asset_id)?;
 
-            let amount_to_transfer = Amount::new(reduce_amount, asset_id); // todo next
+            let amount_to_transfer = Amount::new(reduce_amount, asset_id);
 
             ensure!(!amount_to_transfer.is_zero(), Error::<T>::InvalidAmount);
             let total_reserves = Self::total_reserves(asset_id);
@@ -1467,7 +1464,7 @@ impl<T: Config> Pallet<T> {
 
         // Ensure there is enough cash in the market
         let redeem_amount = voucher.to_underlying()?;
-        Self::ensure_enough_cash(&redeem_amount)?; //todo next
+        Self::ensure_enough_cash(&redeem_amount)?;
 
         // Only free tokens are redeemable. If the account has enough liquidity, the lend tokens
         // must first be withdrawn from collateral (this happens automatically in the `redeem` and
