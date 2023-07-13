@@ -19,6 +19,7 @@ spin = { version = "0.7.1", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.31", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.31", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.31", default-features = false }
+ink = { version = "4.2.0", default-features = false, optional = true }
 
 [dev-dependencies]
 mocktopus = "0.8.0"
